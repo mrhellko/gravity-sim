@@ -62,6 +62,8 @@
 
 Примечание: реализован `PhysicsBackend`, `CpuPhysicsBackend`, velocity Verlet, fixed timestep, softening factor, pinned/static тела и тесты физики.
 
+Follow-up: стартовая сцена заменена на Солнечную систему по NASA/JPL Horizons `DE441` на `2026-06-16 00:00:00 TDB`. Для устойчивости WebGPU/CPU расчетов используются единицы: расстояние в млн км, время в днях, масса в массах Солнца.
+
 ## Этап 3. WebGPU compute backend
 
 Статус: реализован, требуется браузерная runtime-проверка на WebGPU-устройстве.

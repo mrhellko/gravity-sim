@@ -6,19 +6,26 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CpuPhysicsBackend } from './physics/cpuPhysicsBackend';
 import { WebGpuPhysicsBackend } from './physics/webGpuPhysicsBackend';
 import type { BodyInitialState, BodyRuntimeState, PhysicsBackend } from './physics/types';
+import {
+  createSolarSystemInitialBodies,
+  SOLAR_SYSTEM_EPOCH,
+  SOLAR_SYSTEM_GRAVITY,
+  SOLAR_SYSTEM_SOFTENING,
+} from './solarSystemPreset';
 
 type SimulationStatus = 'stopped' | 'running' | 'paused';
 type BackendMode = 'auto' | 'cpu' | 'webgpu';
 
 const FIXED_TIME_STEP_SECONDS = 1 / 120;
 const MAX_FRAME_STEPS = 6;
-const SOFTENING = 0.18;
-const DEFAULT_GRAVITY = 6;
+const SOFTENING = SOLAR_SYSTEM_SOFTENING;
+const DEFAULT_GRAVITY = SOLAR_SYSTEM_GRAVITY;
 const DEFAULT_TIME_SCALE = 1;
 const DEFAULT_TRAIL_POINT_LIMIT = 240;
 const MIN_TRAIL_POINT_LIMIT = 30;
 const MAX_TRAIL_POINT_LIMIT = 900;
 const MAX_REASONABLE_ABS_VALUE = 1_000_000;
+const MIN_RENDER_RADIUS = 0.035;
 const generatedNameParts = [
   'Atlas',
   'Vega',
@@ -55,8 +62,8 @@ app.innerHTML = `
       </div>
       <label class="control-line">
         <span>G</span>
-        <input id="gravityInput" type="range" min="0" max="20" value="${DEFAULT_GRAVITY}" step="0.1" />
-        <output id="gravityValue">6.0</output>
+        <input id="gravityInput" type="range" min="0" max="1200" value="${DEFAULT_GRAVITY}" step="1" />
+        <output id="gravityValue">${DEFAULT_GRAVITY.toFixed(0)}</output>
       </label>
       <label class="control-line">
         <span>Time</span>
@@ -141,9 +148,10 @@ app.innerHTML = `
   <aside class="hud hud-right" aria-label="Метрики сцены">
     <section class="panel metrics">
       <div><span>FPS</span><strong id="fpsValue">0</strong></div>
-      <div><span>Objects</span><strong id="objectCount">3</strong></div>
-      <div><span>Sim time</span><strong id="simulationTime">0.0s</strong></div>
-      <div><span>Step</span><strong>${FIXED_TIME_STEP_SECONDS.toFixed(4)}s</strong></div>
+      <div><span>Objects</span><strong id="objectCount">9</strong></div>
+      <div><span>Sim time</span><strong id="simulationTime">0.0d</strong></div>
+      <div><span>Step</span><strong>${FIXED_TIME_STEP_SECONDS.toFixed(4)}d</strong></div>
+      <div><span>Epoch</span><strong>${SOLAR_SYSTEM_EPOCH}</strong></div>
       <div><span>Physics</span><strong id="physicsBackend">CPU</strong></div>
       <div><span>WebGPU</span><strong id="webGpuStatus">checking</strong></div>
       <div><span>Context</span><strong id="secureContextStatus">checking</strong></div>
@@ -202,9 +210,9 @@ const lastEventStatus = requiredElement<HTMLElement>('#lastEventStatus');
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x07090d);
 
-const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 2000);
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.01, 20000);
 camera.up.set(0, 0, 1);
-camera.position.set(18, -18, 12);
+camera.position.set(0, -6200, 2800);
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
@@ -227,46 +235,15 @@ const keyLight = new THREE.DirectionalLight(0xffffff, 2.4);
 keyLight.position.set(14, -16, 18);
 scene.add(keyLight);
 
-const grid = new THREE.GridHelper(42, 42, 0x24405f, 0x132033);
+const grid = new THREE.GridHelper(10000, 50, 0x24405f, 0x132033);
 grid.rotation.x = Math.PI / 2;
 grid.position.z = -0.02;
 scene.add(grid);
 
-const axes = new THREE.AxesHelper(5);
+const axes = new THREE.AxesHelper(500);
 scene.add(axes);
 
-let initialBodies: BodyInitialState[] = [
-  {
-    id: 'primary',
-    name: 'Primary',
-    mass: 120,
-    radius: 1.6,
-    color: 0xffcc66,
-    position: [0, 0, 0],
-    velocity: [0, 0, 0],
-    pinned: true,
-  },
-  {
-    id: 'orbiter-a',
-    name: 'Orbiter A',
-    mass: 8,
-    radius: 0.55,
-    color: 0x75b8ff,
-    position: [7, 0, 0],
-    velocity: [0, 13.1, 0],
-    pinned: false,
-  },
-  {
-    id: 'orbiter-b',
-    name: 'Orbiter B',
-    mass: 4,
-    radius: 0.42,
-    color: 0xdf8cff,
-    position: [-4, 5, 0],
-    velocity: [-9.8, -7.8, 0],
-    pinned: false,
-  },
-];
+let initialBodies: BodyInitialState[] = createSolarSystemInitialBodies();
 
 let backend: PhysicsBackend = new CpuPhysicsBackend(initialBodies);
 const bodyMeshes = new Map<string, THREE.Mesh>();
@@ -301,7 +278,7 @@ resetButton.addEventListener('click', () => {
 
 gravityInput.addEventListener('input', () => {
   gravity = Number(gravityInput.value);
-  gravityValue.value = gravity.toFixed(1);
+  gravityValue.value = gravity.toFixed(0);
 });
 
 timeScaleInput.addEventListener('input', () => {
@@ -379,7 +356,7 @@ function requiredElement<T extends Element>(selector: string): T {
 }
 
 function createBody(body: BodyInitialState): THREE.Mesh {
-  const geometry = new THREE.SphereGeometry(body.radius, 48, 24);
+  const geometry = new THREE.SphereGeometry(getRenderRadius(body), 48, 24);
   const material = new THREE.MeshStandardMaterial({
     color: body.color,
     roughness: 0.52,
@@ -499,7 +476,7 @@ async function setBackendMode(nextMode: BackendMode): Promise<void> {
     webGpuStatus.textContent = 'available';
     physicsBackend.textContent = backend.label;
     setLastEvent('WebGPU ready');
-    simulationTime.textContent = '0.0s';
+    simulationTime.textContent = '0.0d';
     applySnapshot(backend.getSnapshot().bodies);
     resetTrails(backend.getSnapshot().bodies);
   } catch (error) {
@@ -514,7 +491,7 @@ function switchToCpu(reason: string): void {
   backend = new CpuPhysicsBackend(initialBodies);
   backend.reset(initialBodies);
   physicsBackend.textContent = reason === 'disabled' ? 'CPU' : `CPU (${reason})`;
-  simulationTime.textContent = '0.0s';
+  simulationTime.textContent = '0.0d';
   applySnapshot(backend.getSnapshot().bodies);
   resetTrails(backend.getSnapshot().bodies);
 }
@@ -670,7 +647,7 @@ async function stepSimulation(now: number): Promise<void> {
 
   applySnapshot(snapshot.bodies);
   appendTrailPoints(snapshot.bodies);
-  simulationTime.textContent = `${snapshot.elapsedSeconds.toFixed(1)}s`;
+  simulationTime.textContent = `${snapshot.elapsedSeconds.toFixed(1)}d`;
 }
 
 function applySnapshot(bodies: BodyRuntimeState[]): void {
@@ -692,7 +669,7 @@ function resetSimulation(): void {
   timeScale = DEFAULT_TIME_SCALE;
   gravityInput.value = DEFAULT_GRAVITY.toString();
   timeScaleInput.value = DEFAULT_TIME_SCALE.toString();
-  gravityValue.value = gravity.toFixed(1);
+  gravityValue.value = gravity.toFixed(0);
   timeScaleValue.value = `${timeScale.toFixed(1)}x`;
   physicsAccumulator = 0;
   lastFrameTime = performance.now();
@@ -700,7 +677,7 @@ function resetSimulation(): void {
   const snapshot = backend.getSnapshot();
   applySnapshot(snapshot.bodies);
   resetTrails(snapshot.bodies);
-  simulationTime.textContent = `${snapshot.elapsedSeconds.toFixed(1)}s`;
+  simulationTime.textContent = `${snapshot.elapsedSeconds.toFixed(1)}d`;
   controls.reset();
 }
 
@@ -939,8 +916,12 @@ function updateSelectionMarker(): void {
 
   selectionMarker.visible = true;
   selectionMarker.position.copy(mesh.position);
-  const size = Math.max(body.radius * 1.45, 0.45);
+  const size = Math.max(getRenderRadius(body) * 1.45, 0.45);
   selectionMarker.scale.setScalar(size);
+}
+
+function getRenderRadius(body: BodyInitialState): number {
+  return Math.max(body.radius, MIN_RENDER_RADIUS);
 }
 
 function syncRuntimeInspectorFields(): void {
