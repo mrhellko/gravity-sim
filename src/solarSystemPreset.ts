@@ -47,6 +47,16 @@ const solarSystemBodies: BodyInitialState[] = [
     pinned: false,
   },
   {
+    id: 'moon',
+    name: 'Moon',
+    mass: 3.694303350348185e-8,
+    radius: 0.0017374,
+    color: 0xc8c8c8,
+    position: [-14.833606508701921, -151.7163538161256, 0.050808247419863936],
+    velocity: [2.42803277476317, -0.26428278129746574, -0.004630254057061732],
+    pinned: false,
+  },
+  {
     id: 'mars',
     name: 'Mars',
     mass: 3.2271514450538653e-7,

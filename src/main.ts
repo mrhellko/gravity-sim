@@ -25,9 +25,9 @@ const DEFAULT_TRAIL_POINT_LIMIT = 240;
 const MIN_TRAIL_POINT_LIMIT = 30;
 const MAX_TRAIL_POINT_LIMIT = 900;
 const MAX_REASONABLE_ABS_VALUE = 1_000_000;
-const MIN_RENDER_RADIUS = 3;
-const MAX_RENDER_RADIUS = 18;
-const RENDER_RADIUS_MULTIPLIER = 700;
+const MIN_RENDER_RADIUS = 0.025;
+const MAX_RENDER_RADIUS = 14;
+const RENDER_RADIUS_MULTIPLIER = 20;
 const generatedNameParts = [
   'Atlas',
   'Vega',
@@ -150,7 +150,7 @@ app.innerHTML = `
   <aside class="hud hud-right" aria-label="Метрики сцены">
     <section class="panel metrics">
       <div><span>FPS</span><strong id="fpsValue">0</strong></div>
-      <div><span>Objects</span><strong id="objectCount">9</strong></div>
+      <div><span>Objects</span><strong id="objectCount">10</strong></div>
       <div><span>Sim time</span><strong id="simulationTime">0.0d</strong></div>
       <div><span>Step</span><strong>${FIXED_TIME_STEP_SECONDS.toFixed(4)}d</strong></div>
       <div><span>Epoch</span><strong>${SOLAR_SYSTEM_EPOCH}</strong></div>
@@ -924,7 +924,7 @@ function updateSelectionMarker(): void {
 
 function getRenderRadius(body: BodyInitialState): number {
   return Math.min(
-    Math.max(Math.sqrt(body.radius) * RENDER_RADIUS_MULTIPLIER, MIN_RENDER_RADIUS),
+    Math.max(body.radius * RENDER_RADIUS_MULTIPLIER, MIN_RENDER_RADIUS),
     MAX_RENDER_RADIUS,
   );
 }

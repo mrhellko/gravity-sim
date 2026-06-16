@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { CpuPhysicsBackend } from './physics/cpuPhysicsBackend';
-import type { BodyRuntimeState, Vec3 } from './physics/types';
+import type { Vec3 } from './physics/types';
 import {
   createSolarSystemInitialBodies,
   SOLAR_SYSTEM_GRAVITY,
@@ -9,6 +9,16 @@ import {
 } from './solarSystemPreset';
 
 describe('solar system preset', () => {
+  it('starts with the Moon separated from Earth', () => {
+    const bodies = createSolarSystemInitialBodies();
+    const earth = requiredBody(bodies, 'earth');
+    const moon = requiredBody(bodies, 'moon');
+    const earthMoonDistance = distance(earth.position, moon.position);
+
+    expect(earthMoonDistance).toBeGreaterThan(0.35);
+    expect(earthMoonDistance).toBeLessThan(0.45);
+  });
+
   it('keeps planet state finite and away from the Sun over one simulated year', async () => {
     const backend = new CpuPhysicsBackend(createSolarSystemInitialBodies());
     const deltaDays = 1 / 24;
@@ -37,7 +47,7 @@ describe('solar system preset', () => {
   });
 });
 
-function requiredBody(bodies: BodyRuntimeState[], id: string): BodyRuntimeState {
+function requiredBody<T extends { id: string; position: Vec3 }>(bodies: T[], id: string): T {
   const body = bodies.find((item) => item.id === id);
 
   if (!body) {
