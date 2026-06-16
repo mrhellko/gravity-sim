@@ -25,7 +25,9 @@ const DEFAULT_TRAIL_POINT_LIMIT = 240;
 const MIN_TRAIL_POINT_LIMIT = 30;
 const MAX_TRAIL_POINT_LIMIT = 900;
 const MAX_REASONABLE_ABS_VALUE = 1_000_000;
-const MIN_RENDER_RADIUS = 0.035;
+const MIN_RENDER_RADIUS = 8;
+const MAX_RENDER_RADIUS = 28;
+const RENDER_RADIUS_MULTIPLIER = 2200;
 const generatedNameParts = [
   'Atlas',
   'Vega',
@@ -921,7 +923,10 @@ function updateSelectionMarker(): void {
 }
 
 function getRenderRadius(body: BodyInitialState): number {
-  return Math.max(body.radius, MIN_RENDER_RADIUS);
+  return Math.min(
+    Math.max(Math.sqrt(body.radius) * RENDER_RADIUS_MULTIPLIER, MIN_RENDER_RADIUS),
+    MAX_RENDER_RADIUS,
+  );
 }
 
 function syncRuntimeInspectorFields(): void {
