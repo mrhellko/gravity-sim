@@ -46,6 +46,7 @@ https://g.order.mrhellko.ru/
 - Переключатель видимости траекторий.
 - Настройка максимальной длины траекторий.
 - Ограничение памяти траекторий через bounded history.
+- Infinite trail mode без обрезки истории.
 - Unit-тесты CPU-физики.
 - ESLint, Prettier, Vitest, production build.
 

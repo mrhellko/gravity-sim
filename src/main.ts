@@ -69,6 +69,11 @@ app.innerHTML = `
         <output id="trailEnabledValue">On</output>
       </label>
       <label class="control-line">
+        <span>Keep</span>
+        <input id="trailInfiniteInput" type="checkbox" />
+        <output id="trailInfiniteValue">Limit</output>
+      </label>
+      <label class="control-line">
         <span>Length</span>
         <input id="trailLengthInput" type="range" min="${MIN_TRAIL_POINT_LIMIT}" max="${MAX_TRAIL_POINT_LIMIT}" value="${DEFAULT_TRAIL_POINT_LIMIT}" step="30" />
         <output id="trailLengthValue">${DEFAULT_TRAIL_POINT_LIMIT}</output>
@@ -158,6 +163,8 @@ const timeScaleInput = requiredElement<HTMLInputElement>('#timeScaleInput');
 const timeScaleValue = requiredElement<HTMLOutputElement>('#timeScaleValue');
 const trailEnabledInput = requiredElement<HTMLInputElement>('#trailEnabledInput');
 const trailEnabledValue = requiredElement<HTMLOutputElement>('#trailEnabledValue');
+const trailInfiniteInput = requiredElement<HTMLInputElement>('#trailInfiniteInput');
+const trailInfiniteValue = requiredElement<HTMLOutputElement>('#trailInfiniteValue');
 const trailLengthInput = requiredElement<HTMLInputElement>('#trailLengthInput');
 const trailLengthValue = requiredElement<HTMLOutputElement>('#trailLengthValue');
 const backendModeSelect = requiredElement<HTMLSelectElement>('#backendModeSelect');
@@ -274,6 +281,7 @@ let status: SimulationStatus = 'stopped';
 let gravity = Number(gravityInput.value);
 let timeScale = Number(timeScaleInput.value);
 let trailsEnabled = trailEnabledInput.checked;
+let trailsInfinite = trailInfiniteInput.checked;
 let trailPointLimit = Number(trailLengthInput.value);
 let frameCount = 0;
 let fpsWindowStart = performance.now();
@@ -315,6 +323,17 @@ trailEnabledInput.addEventListener('change', () => {
   trailsEnabled = trailEnabledInput.checked;
   trailEnabledValue.value = trailsEnabled ? 'On' : 'Off';
   updateTrailVisibility();
+});
+
+trailInfiniteInput.addEventListener('change', () => {
+  trailsInfinite = trailInfiniteInput.checked;
+  trailInfiniteValue.value = trailsInfinite ? 'All' : 'Limit';
+  trailLengthInput.disabled = trailsInfinite;
+
+  if (!trailsInfinite) {
+    resetTrailLengthLimit();
+    trimAllTrails();
+  }
 });
 
 trailLengthInput.addEventListener('input', () => {
@@ -962,8 +981,8 @@ function appendTrailPoints(bodies: BodyRuntimeState[]): void {
       points.push(position);
     }
 
-    while (points.length > trailPointLimit) {
-      points.shift();
+    if (!trailsInfinite) {
+      trimTrailPoints(points);
     }
 
     trailPoints.set(body.id, points);
@@ -995,12 +1014,21 @@ function clearAllTrails(): void {
 
 function trimAllTrails(): void {
   for (const [bodyId, points] of trailPoints) {
-    while (points.length > trailPointLimit) {
-      points.shift();
-    }
-
+    trimTrailPoints(points);
     updateTrailLine(bodyId);
   }
+}
+
+function trimTrailPoints(points: THREE.Vector3[]): void {
+  while (points.length > trailPointLimit) {
+    points.shift();
+  }
+}
+
+function resetTrailLengthLimit(): void {
+  trailPointLimit = DEFAULT_TRAIL_POINT_LIMIT;
+  trailLengthInput.value = DEFAULT_TRAIL_POINT_LIMIT.toString();
+  trailLengthValue.value = DEFAULT_TRAIL_POINT_LIMIT.toString();
 }
 
 function updateTrailLine(bodyId: string): void {
