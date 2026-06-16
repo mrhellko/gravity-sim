@@ -271,6 +271,7 @@ let selectedBodyId: string | null = null;
 let bodySequence = initialBodies.length + 1;
 let currentBackendMode: BackendMode = 'auto';
 let focusFollowEnabled = false;
+let cameraFollowOffset = new THREE.Vector3();
 
 startButton.addEventListener('click', () => setStatus('running'));
 pauseButton.addEventListener('click', () => setStatus(status === 'paused' ? 'running' : 'paused'));
@@ -695,6 +696,7 @@ function selectBodyFromPointer(event: PointerEvent): void {
 
 function selectBody(bodyId: string | null): void {
   selectedBodyId = bodyId;
+  updateCameraFollowOffset();
   syncInspector();
   updateSelectionMarker();
   renderBodyList();
@@ -856,11 +858,18 @@ function clearBodies(): void {
 }
 
 function toggleFocusFollow(): void {
-  if (!selectedBodyId) {
+  const mesh = selectedBodyId ? bodyMeshes.get(selectedBodyId) : null;
+
+  if (!mesh) {
     return;
   }
 
   focusFollowEnabled = !focusFollowEnabled;
+
+  if (focusFollowEnabled) {
+    cameraFollowOffset = camera.position.clone().sub(mesh.position);
+  }
+
   updateFocusButtonState();
   updateCameraFollow();
 }
@@ -872,7 +881,18 @@ function updateCameraFollow(): void {
     return;
   }
 
+  camera.position.copy(mesh.position).add(cameraFollowOffset);
   controls.target.copy(mesh.position);
+}
+
+function updateCameraFollowOffset(): void {
+  const mesh = selectedBodyId ? bodyMeshes.get(selectedBodyId) : null;
+
+  if (!mesh || !focusFollowEnabled) {
+    return;
+  }
+
+  cameraFollowOffset.copy(camera.position).sub(mesh.position);
 }
 
 function getSelectedInitialBody(): BodyInitialState | null {
@@ -900,6 +920,7 @@ function renderBodyList(): void {
 function updateFocusButtonState(): void {
   if (!selectedBodyId) {
     focusFollowEnabled = false;
+    cameraFollowOffset.set(0, 0, 0);
   }
 
   focusBodyButton.classList.toggle('is-active', focusFollowEnabled);
